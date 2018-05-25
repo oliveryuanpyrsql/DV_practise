@@ -1,0 +1,85 @@
+---
+title: "R and ggplot"
+author: "Oliver Yuan"
+output: html_notebook
+---
+**INSTRUCTIONS**  
+Following the instructions below to create charts from the *prescriber-info.csv* file used in HW1. Submit the .rmd R notebook on Sakai by the deadline: **Wednesday November 8 at 11:55pm**. 
+  
+*Data processing*  
+For each of these charts, you will need to aggregate the data set to import it into ggplot2. Use the dplyr package to summarise the data for each question. All the charts should only include data from the Continental U.S., so the data will need to be filtered appropriately. You do not need to process the data separately for each question, so feel free to aggregate the data as efficiently as possible.
+  
+*Charts*  
+Use the ggplot2 package to create all the following charts. All charts should include a chart title, axis labels, a black-and-white theme. Where appropriate, the design elements should be altered to improve readability. For example, long axis labels should be wrapped to prevent overlap using scale_x_discrete().
+  
+*Load data and packages*  
+The following packages should be sufficient to manipulate the data and create the graphs. The original dataset should be named "dat", so the command to import the data is included for standardization. (1 pt) 
+```{r}
+library(ggplot2)
+library(dplyr)
+library(scales)
+dat <- read.csv("prescriber-info.csv")
+conti_dat <- filter(dat, !(State %in% c("AA","AE","AK", "GU","HI","PR", "VI", "ZZ")))
+```
+***
+**HW3 Question 1: Sales by State (Bar Chart)**  
+Recreate the Q3 bar chart from the first homework, HW1, except that FL should be highlighted. Create a bar chart of the sum of the Oxycontin prescriptions by State. The bars should be sorted in descending order, and the State of FL should be highlighted. Only the continental U.S. entities should be included, so you'll need to preprocess the dataset to exclude those values and summarize the data at the appropriate level.(8 points)
+
+```{r fig.width=10}
+
+group_by(conti_dat, State) %>% 
+  summarise(Oxycontin = sum(OXYCONTIN))  %>% 
+  as.data.frame() %>% 
+  mutate(ht = ifelse(State == 'FL', "yes", "no")) %>% 
+  ggplot( aes(reorder(State, -Oxycontin), Oxycontin, fill = ht))+
+  geom_bar(stat = "identity")+
+  guides(fill=FALSE)+
+  xlab("State") + ylab("Oxycontin")+
+  ggtitle("Which state has the highest prescriptions of Oxycontin")+
+  theme_bw()
+
+
+```
+
+***
+**HW3 Question 2: Oxycontin vs Fentanyl (Bubble Chart)**  
+Recreate the Q4 scatterplot from the first homework assignment, HW1. Compare the number of prescriptions for Oxycontin and Fentanyl, with Oxycontin on the x-axis and Fentanyl on the y-axis, and the bubble size and color should reflect the sum of Opioid Prescribers. (8 points)
+```{r fig.width=10}
+
+group_by(conti_dat, State) %>% 
+  summarise(Oxycontin = sum(OXYCONTIN), 
+            Fentanyl = sum(FENTANYL), 
+            opioid_prescriptions= sum(Opioid.Prescriber))  %>%
+  as.data.frame() %>%
+  ggplot()+
+  geom_point(mapping = aes(x = Oxycontin, y = Fentanyl, color = opioid_prescriptions, size = opioid_prescriptions))+
+  ggtitle("Is there a relationship between Oxycontin and Fentanyl and opioid prescriptions")+
+  theme_bw()
+  
+  
+```
+
+***
+**HW3 Question 3: Distribution of Oxycontin by Specialty (Boxplot)**  
+Recreate the Q5 boxplot from the first homework HW1, except for the annotations. Each boxplot shows the distribution of the sum of Oxycontin prescriptions by state for each specialty. The specialty should be filtered by the set that made than 2000+ prescriptions. (8 points)
+
+```{r fig.width=10}
+s1 <- group_by(conti_dat, Specialty) %>% 
+  summarise(Oxycontin = sum(OXYCONTIN))  %>%
+  filter(Oxycontin > 2000)
+
+x.labels <- c("Family Practice","Internal Medicine", 
+                 "Nurse Practitioner", "Physical Medicine\nand Rehabilitation","Pain Management", "Physician Assistant", "Anesthesiology", "Interventional Pain\nManagement")
+
+filter(conti_dat, Specialty %in% s1$Specialty) %>% 
+  group_by(Specialty, State) %>% 
+  summarise(Oxycontin = sum(OXYCONTIN)) %>% 
+  as.data.frame() %>% 
+  ggplot()+
+  geom_boxplot(mapping = aes(x = reorder(Specialty, -Oxycontin, FUN = sum), y = Oxycontin))+
+  xlab("Specialty") + ylab("Oxycontin")+
+  ggtitle("Family Medicine and Internal Medicine have the most Oxycontin prescriptions")+
+  scale_x_discrete(labels= x.labels)
+
+
+```

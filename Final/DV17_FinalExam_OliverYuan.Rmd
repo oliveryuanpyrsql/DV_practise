@@ -1,0 +1,353 @@
+---
+title: "DV Final Exam"
+date: "December 1, 2017"
+output: html_document
+---
+
+### Instructions
+
+***
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+library(tidyverse)
+library(ggvis)
+library(igraph)
+library(scales)
+se <- function(x){ sqrt(var(x, na.rm=T)/length(x))}
+listingsAll <- read.csv("dc_listings_exam.csv")
+```
+***
+#### Part 1: Visual Choices
+The following three questions contain R plots that do not align with the principles of Data Visualization, as discussed in our class and in the reading Data Points. Correct the plots using your knowledge of ggplot2.
+
+  
+**EXAMPLE**  
+*Question*   
+The following is an example of an initial graph. There are three primary lines that need change in order to improve.
+```{r, fig.width=10,  echo=FALSE}
+q0 <- listingsAll %>%
+  filter(!is.na(bed_type)) %>%
+  filter(price <= 500)
+
+ggplot(data=q0, aes(x=bed_type, y=price)) +
+  geom_point(fill="grey50", aes(size=price, color=price))+
+  geom_boxplot(fill="royalblue3", alpha=0.5) + 
+  theme_minimal() +
+    theme( axis.title.x = element_text(size=10, face="bold"),
+        axis.title.y = element_text(size=10, face="bold"),
+        axis.text.x = element_text(size=10),
+        legend.position="bottom",
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(color="grey95"),
+        panel.grid.minor = element_blank(), 
+        plot.caption = element_text(size=8)) +
+  labs(x="Bed Type",
+       title="Airbnb Bed Types by D.C. Neighborhood",
+       subtitle="Real beds have a much higher median price then the other bed types, focusing on rooms with a price under or at $500.",
+       caption="Source: Inside Airbnb")
+```
+
+*Answer*   
+The following is an example of a corrected answer. There are three lines were changed to improve the readability of the graph, and each one has a comment explaining the rationale behind the change.
+```{r, fig.width=10}
+
+q0 <- listingsAll %>%
+  filter(!is.na(bed_type)) %>%
+  filter(price <= 500)
+
+# The boxplots need to be sorted in a meaningful way in order to 
+# draw attention to the important insight: The bed type with the 
+# highest median price is "real beds."
+ggplot(data=q0, aes(x=reorder(bed_type, -price, FUN=median), y=price)) +
+  # It was redunant to use size or color as a visual cue for price when price is already
+  # on the y-axis so I eliminated them.
+  geom_point(fill="grey50")+
+  geom_boxplot(fill="royalblue3", alpha=0.5)+
+  theme_minimal() +
+    theme( axis.title.x = element_text(size=10, face="bold"),
+        axis.title.y = element_text(size=10, face="bold"),
+        axis.text.x = element_text(size=10),
+        legend.position="bottom",
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(color="grey95"),
+        panel.grid.minor = element_blank(), 
+        plot.caption = element_text(size=8)) +
+  # The y-axis should have labels to make it easier to read.
+  labs(x = "Bed Type", y="Price ($)",
+       title="Airbnb Bed Types by D.C. Neighborhood",
+       subtitle="Real beds have a much higher median price then the other bed types, focusing on rooms with a price under or at $500.",
+       caption="Source: Inside Airbnb")
+```
+
+***
+  
+**1. Listings per neighborhood**
+  
+This plot is supposed to show the number of listings for each neighborhood. The goal of the graphic is to provide a heatmap of the number of listings for each type, potentially seeing the distribution of room types per neighborhood, as discussed in the plot subtitle.
+ 
+There are at least three lines that need corrections in the script below. You should correct those lines, and explain why you made those changes. The data set, q1, does not need any changes.
+ 
+*(6 pts)*
+
+```{r, fig.width=10,  echo=FALSE}
+q1 <- listingsAll %>%
+  select(neighbourhood_cleansed, price, room_type) %>%
+  group_by(neighbourhood_cleansed, room_type) %>%
+  summarise(avg_price = mean(price),
+            num_listings = length(neighbourhood_cleansed))
+
+# Start here
+ggplot(data=q1, aes(x=room_type, y=neighbourhood_cleansed)) +
+  geom_tile(aes(fill=num_listings)) +
+  scale_fill_continuous(name="Number of\nListings", low="#66CCCC", high="#6666FF") +
+  theme(panel.background = element_rect(fill="white"),
+        plot.caption = element_text(size=8),
+        axis.ticks.y = element_blank(), 
+        axis.text.y = element_blank(),
+        axis.title.x = element_text(size=10, face="bold"),
+        axis.title.y = element_text(size=10, face="bold")) +
+  labs(x="Room Type", y="Neighborhoods",
+       title="Heatmap of Airbnb rooms per neighborhood",
+       subtitle="The supply of entire home or apartments available to rent are concentrated in 2-3 neighborhoods.",
+       caption="Source: Inside Airbnb")
+
+# In this plot, I changed three things:
+# I changed the scale of color because original color is hard to read and made me feel dizzy.
+# I add a x-axis title because it is important for readers to know what are on axises.
+# I removed numbers in the original plot. Since this plot is a heatmap and we want to see the distribution potentially, actual numbers are not necessary.
+
+```
+
+In this plot, I changed three things:
+* I changed the scale of color because original color is hard to read and made me feel dizzy.
+* I add a x-axis title because it is important for readers to know what are on axises.
+* I removed numbers in the original plot. Since this plot is a heatmap and we want to see the distribution potentially, actual numbers are not necessary.
+
+
+***
+  
+**2. Neighborhoods and price**  
+
+This plot is supposed to show that the most popular neighborhoods, as measured by the number of listsings, do not necessarily have the highest prices for available rooms. The goal is to combine information about the most popular neighbors with information about the price and the number of available listings.
+
+There are at least three lines that need corrections in the script below. You should correct those lines, and explain your rationale for making those changes. The data set, q2, does not need any changes.
+  
+*(6 pts)*
+```{r, fig.width=10, echo=FALSE}
+q2 <- listingsAll %>%
+  select(neighbourhood_cleansed, price, id) %>%
+  mutate(neighbourhood_cleansed = gsub("/|-", " ", neighbourhood_cleansed)) %>%
+  group_by(neighbourhood_cleansed) %>%
+  summarise(num_listings = length(id),
+            meany = mean(price), 
+            sey = se(price))%>%
+  arrange(desc(num_listings)) %>%
+  top_n(10, wt=num_listings)
+
+# Start here
+ggplot(data=q2, aes(x=reorder(neighbourhood_cleansed, -num_listings), y=meany)) +
+  geom_bar(stat="identity", fill = "#FD5C63",
+           color="lightsteelblue4") + 
+  guides(fill=FALSE)+
+  geom_errorbar(data=q2, aes(ymin=meany-sey, ymax=meany+sey), width=0.5)+ 
+  geom_text(aes(label=paste("N=",num_listings, sep=""), 
+                y=max(meany)/20), size=4, color="white") + 
+  theme_minimal() +
+  scale_x_discrete(labels = wrap_format(4)) +
+  theme(axis.title.x = element_text(size=10, face="bold"),
+        axis.title.y = element_text(size=10, face="bold"),
+        axis.text.x = element_text(size=9),
+        legend.position="bottom",
+        panel.grid.major.x = element_line(color="white"),
+        panel.grid.major.y = element_line(color="grey"),
+        panel.grid.minor = element_blank(), 
+        plot.caption = element_text(size=8)) +
+  labs(x = "Neighborhood", y="Average Price ($)",
+       title="Airbnb Room Prices by D.C. Neighborhood",
+       subtitle="The most popular neighborhoods for Airbnb hosts do not command the highest prices.",
+       caption="Source: Inside Airbnb")
+
+#I changed five things in this plot:
+# Since we want to show the most popular neighborhoods do not necessarily have the highest prices for available rooms, I reordered bars to let readers see the most neighborhood first.
+# I changed the color to fill bars. Different colors mean nothing in this case, so I changed it to the color of Airbnb logo.
+# I removed the vertical background grid lines because it's a little distracting. But I kept horizontal grid lines and changed its color to grey because it can help us estimate average prices.
+# As always, I add a x-axis title.
+# I changed the font size of x-axis text and text at the bottom of bars so it's easier to read.
+
+```
+
+I changed five things in this plot:
+* Since we want to show the most popular neighborhoods do not necessarily have the highest prices for available rooms, I reordered bars to let readers see the most neighborhood first.
+* I changed the color to fill bars. Different colors mean nothing in this case, so I changed it to the color of Airbnb logo.
+* I removed the vertical background grid lines because it's a little distracting. But I kept horizontal grid lines and changed its color to grey because it can help us estimate average prices.
+* As always, I add a x-axis title.
+* I changed the font size of x-axis text and text at the bottom of bars so it's easier to read.
+
+***
+  
+**3. Room types and price**  
+
+This graph is supposed to show the average price among the property types. For this graph in particular, consider the type of data that you want to plot, and you may want to refer to Chapter 4 of Data Points as to what types of plots are appropriate. 
+
+There are at least three corrections to the graph below. You should make the corrections to the code and comment in the R below as to why you made those changes. The data set, q3, does not need any changes.
+  
+*(6 pts)*
+```{r, fig.width=10, echo=FALSE}
+q3 <- listingsAll %>%
+  select(property_type, price, id) %>%
+  group_by(property_type) %>%
+  summarise(num_listings = length(id),
+            mean_price = mean(price), 
+            se_price = se(price)) %>%
+  filter(!is.na(se_price))
+
+# Start here
+ggplot(data=q3, aes(x=reorder(property_type, -mean_price), y=mean_price)) +
+  geom_bar(stat = "identity", fill = "#FD5C63") +
+  geom_errorbar(data=q3, aes(ymin=mean_price-se_price,
+                             ymax=mean_price+se_price), 
+                width=0.25, color="grey10") +
+  theme_minimal() +
+  scale_x_discrete(labels = wrap_format(4)) +
+  theme(axis.title.x = element_text(size=10, face="bold"), 
+        axis.title.y = element_text(size=10, face="bold"), 
+        axis.text.x = element_text(size=8),
+        legend.position="none",
+        panel.grid.major.x = element_line(colour="white"),
+        panel.grid.major.y = element_line(colour="grey"),
+        plot.subtitle = element_text(size=9),
+        plot.caption = element_text(size=8)) +
+  labs(x="Apartment Type", y="Mean Price ($)",
+       title="Average Price by Property Type",
+       subtitle="Insight: Houses, Townhouses, and Lofts command the highest price, but lofts have the highest standard error.",
+       caption="Source: Inside Airbnb")
+# I changed three things in this plot:
+# Since we want to compare the average price and standard error across apartment type, I decided to use barchart. And I reordered bars by average price.
+# I removed vertical grid lines because they will overlap with errorbars. And I changed the color of horizontal grid lines to grey.
+# I changed font sizes of subtitle, x-axis text and caption to make them easier to read.
+
+```
+
+I changed three things in this plot:
+* Since we want to compare the average price and standard error across apartment type, I decided to use barchart. And I reordered bars by average price.
+* I removed vertical grid lines because they will overlap with errorbars. And I changed the color of horizontal grid lines to grey.
+* I changed font sizes of subtitle, x-axis text and caption to make them easier to read.
+
+***
+  
+### Part 2: Errors
+The following two questions contain errors that prevent the script from executing. Correct the errors in order to have a functional script that creates that described graph.
+
+**4. Room types with ggvis**  
+
+This graph is supposed to be a tool to help explore the relationship between num_listings, room_type, property type, and neighborhood that were discussed in the first three graphs.
+
+There are three errors that you should correct in order to make this script run. the graph below. Make the corrections to the code and comment in the R below as to why you made those changes. Explain why the code does not work with comments in the script.
+  
+*(6 pts)*
+```{r, eval=FALSE, echo=FALSE, fig.width=10}
+library(ggvis)
+
+q4 <- listingsAll %>%
+  select(property_type, room_type, neighbourhood_cleansed, price, id) %>%
+  filter(property_type %in% c("Apartment", "House", "Condominium", "Loft")) %>%
+  droplevels() %>%
+  group_by(property_type, room_type, neighbourhood_cleansed) %>%
+  summarise(num_listings = length(id))
+
+# Start here
+n_choices <- unique(listingsAll$neighbourhood_cleansed)
+room_choices <- unique(listingsAll$room_type)
+
+ggvis(data = q4, x = ~reorder(property_type, -num_listings), y = ~num_listings) %>%
+  filter(room_type %in% eval(input_checkboxgroup(room_choices, 
+                                     label="Room Type", selected="Private room"))) %>%
+  filter(neighbourhood_cleansed %in% eval(input_select(n_choices, 
+                      label="Neighborhood (Hold Ctrl to choose multiple)",
+                      selected=n_choices[1], multiple=T))) %>%
+  layer_bars(fill = ~room_type) %>%
+  add_axis("x", title = "Property Type") %>%
+  add_axis("y", title = "Number of Listings", title_offset = 40) %>%
+  add_legend("fill", title = "Room Type")
+
+# I found three errors in the script:
+# No data is included in ggvis(), so there is nothing to plot.
+# The factor list *room_choice* in line 248 was not created, so I create a list to choose from.
+# The code in layer_bars() has syntax error so I used ~ to indicate it's a variable in q4 dataset.
+
+```
+
+I found three errors in the script:
+* No data is included in ggvis(), so there is nothing to plot.
+* The factor list *room_choice* in line 248 was not created, so I create a list to choose from.
+* The code in layer_bars() has syntax error so I used ~ to indicate it's a variable in q4 dataset.
+
+***
+  
+**5. Host network**
+The following script plots the co-stay network of hosts. Each node is a host, and the host ties represent hosts with common reviewers. Put differently, some reviewers stay with different hosts, and those hosts may have common attributes (i.e., apartments, similar neighborhoods, etc.). To understand the relationships among hosts, you should plot the network of hosts. 
+  
+The host network has been restricted to 2013 visits. The nodes are colored by their degree (or the number of hosts that they are connected to by reviewers). The edges are colored by the number of reviewers that the connected hosts have in common.
+  
+*(6 pts)*
+
+```{r, eval=FALSE, echo=FALSE, fig.width=10}
+library(igraph)
+
+# Load the data into R
+host_net <- read.csv("dc_host_network.csv")
+
+# Create the network from the data frame
+g <- graph.data.frame(host_net, directed=F)
+
+# Find the largest connected component of the graph
+g <- decompose.graph(g, mode = c("weak"),
+                      max.comps = 1, min.vertices = 2)[[1]]
+
+# Find the (x,y) coordinates for each of the nodes in the graph
+node_coords <- data.frame(name = V(g)$name, layout_with_fr(g))
+
+# Find the four lines with problem(s) in the code below.
+# This line should find the degree for each node in the graph.
+node_coords$deg = degree(g)
+
+# These lines should join the list of edges (host_net) with the coordinates
+# for each node (node_coords)
+edge_coords <- host_net %>%
+  inner_join(node_coords, by=c("host_id.x"="name")) %>%
+  inner_join(node_coords, by=c("host_id.y"="name"), suffix=c(".x", ".y"))
+
+# These lines should plot the node and edge data with merged coordinates. The plot
+# should color the nodes by the degree. There is no need to change the types of the
+# chart, so you should focus on the inputs.
+ggplot() + 
+  geom_segment(data=edge_coords, 
+               aes(x=X1.x, y=X2.x,xend=X1.y, yend=X2.y, 
+               color=numReviewers), size=0.5) +
+  geom_point(aes(x=X1.x, y=X2.x, color=deg.x), data = edge_coords, size=2) + 
+  # no need to change anything below.
+  scale_color_continuous(low="grey80", high="red") +
+  scale_x_continuous(breaks = NULL) + scale_y_continuous(breaks = NULL) + 
+  theme(panel.background = element_blank(),
+        legend.position = "none",
+        axis.title = element_blank(),
+        panel.grid = element_blank())
+
+# I changed four lines in the script above:
+# Use degree() function to find degrees
+# change variable names in join()
+# change start point and end point in geom_segment()
+# change x and y variable and selected dataset in geom_point()
+
+
+```
+
+I changed four lines in the script above:
+* Use degree() function to find degrees
+* change variable names in join()
+* change start point and end point in geom_segment()
+* change x and y variable and selected dataset in geom_point()
+
+***
+### Part 3. Insights
+Given what you learned in the five preceding exervises, tell me something interesting about this data related to either the price, review scores, the most desirable neighborhood (as a host) and/or the network of hosts. You are welcome to use any package, including Shiny. If you choose to create a Shiny app, please write that below and submit that R script separately.
+ 
